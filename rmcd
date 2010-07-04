@@ -1,0 +1,216 @@
+#!/usr/bin/perl
+#!/usr/bin/perl
+# rmcd
+# Copyright (C) 2010 Magnus Woldrich <trapd00r@trapd00r.se>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+########################################################################
+
+use strict;
+use Carp;
+use Data::Dumper;
+use Getopt::Long;
+use Cwd qw(abs_path getcwd);
+use File::Copy;
+use Mplayer::NowPlaying qw($np_log np stream_np);
+use RPD::URI qw(geturi listchans);
+
+
+my $log     = "$ENV{HOME}/.mplayer/mplayerd.log";
+my $fifo    = "$ENV{HOME}/.mplayer/mplayerd.fifo";
+my $pidfile = '/tmp/mplayerd.pid';
+my $player  = 'mplayer';
+my @playopt = ('-cache', 200, '-quiet', '-identify',
+                '-idle', '-input', "file=$fifo"
+              );
+$np_log = $log;
+
+
+
+# Check if files ^ exist
+fileexist();
+
+our($opt_radio);
+GetOptions(
+  'kill'      => \&killkid,
+  'play:s{,}' => sub {shift; load(@_)},
+  'cmd:s{,}'  => \&cmd,
+  'radio:s'   => \&radio,
+);
+
+my @files = @ARGV; # No opts specified, go on...
+
+if(-e $pidfile) {
+  # started, waiting for commands
+  if(!@files) {
+    # lets show some info
+    #print np('file');
+    info();
+  }
+  load(@files);
+}
+else {
+  play(@files);
+}
+
+
+my %allowed_cmds = (
+  next    => 'pt_step 1',
+  prev    => 'pt_step -1',
+  toggle  => 'pause',
+  pause   => 'pause',
+  stop    => 'stop',
+  fs      => 'fullscreen',
+);
+
+
+
+
+sub fileexist {
+  if(!-p $fifo) {
+    require POSIX;
+    POSIX::mkfifo($fifo, 0666) or croak("Cant mkfifo $fifo: $!");
+  }
+}
+
+sub load {
+  my @toload = @_;
+  print "$_\n" for @toload;
+  open(my $fh, '>', $fifo) or croak("Cant open $fifo: $!");
+  print $fh "loadfile @toload\n";
+  exit(0);
+}
+
+sub radio {
+  shift;
+  my $key = shift;
+  my $stream = geturi($key);
+  open(my $fh, '>', $fifo) or croak($!);
+  print $fh "loadfile $stream\n";
+  close($fh);
+  sleep(1);
+  info();
+  exit(0);
+}
+
+sub play {
+  my @toplay = @_;
+  print "$_\n" for @toplay;
+  daemonize();
+  exec($player, @playopt, @toplay);
+}
+
+sub cmd {
+  shift; # rid of GetOpt... 
+  print my @cmd = @_;
+  open(my $fh, '>', $fifo) or croak("Cant open $fifo: $!");
+  print $fh @cmd, "\n";
+  close($fh);
+}
+
+sub daemonize {
+  use POSIX 'setsid';
+  my $PID = fork();
+  exit(0) if($PID); #parent
+  exit(1) if(!defined($PID)); # out of resources
+
+  setsid();
+  $PID = fork();
+  exit(1) if(!defined($PID));
+
+  if($PID) { # parent
+    waitpid($PID, 0);
+    unlink($pidfile); # remove the lock when child have died
+    exit(0);
+  }
+  elsif($PID == 0) { # child
+    open(my $fh, '>', $pidfile) or die("Cant open $pidfile: $!");
+    print $fh $$;
+    close($fh);
+    open(STDOUT, '>', $log);
+    open(STDERR, '>', '/dev/null');
+    open(STDIN,  '<', '/dev/null');
+  }
+}
+
+sub killkid {
+  open(my $fh, '<', $pidfile) or croak("Could not open $pidfile: $!");
+  my $target = <$fh>;
+  close($fh);
+
+  if(kill(9, $target)) {
+    print "Mplayerd with PID $target terminated\n";
+  }
+  else {
+    print "Could not kill $target: $!";
+  }
+  exit(0);
+}
+
+sub info {
+  my @c = undef;
+  my($def,$bold,$italic) = ("\033[0m", "\033[1m", "\033[3m");
+
+  if(`tput colors` > 255) {
+    my $e = "\033[38;5";
+    @c = (
+      "$e;029m", "$e;130m", "$e;136m", "$e;142m", "$e;148m",
+      "$e;154m", "$e;166m", "$e;172m", "$e;178m", "$e;184m",
+    );
+  }
+  else {
+    for(my $i=0;$i<9;$i++) {
+      push(@c, "\033[3$i".'m');
+    }
+  }
+
+  if(np('file') =~ m;(?:http|mms)://;) {
+    my $np = stream_np();
+
+    my($title, $bitrate, $website, $genre) = ($np->{title}, $np->{bitrate},
+    $np->{website}, $np->{genre});
+    
+    if($bitrate < 192) {
+      $bitrate = "$c[4]$bitrate$def$bold :($def";
+    }
+
+    printf("$bold$c[1]%7s$def: $bold$c[0]%.55s$def\n", 'Title', $title);
+    printf("$bold$c[2]%7s$def: %.55s\n", 'Bitrate', $bitrate);
+    printf("$bold$c[3]%7s$def: %.55s\n", 'Genre', $genre);
+    printf("$bold$c[4]%7s$def: %.55s\n", 'Channel', $website);
+  }
+  else {
+    my $artist  = np('artist');
+    my $title   = np('title');
+    my $album   = np('album');
+    my $year    = np('year');
+    my $comment = np('comment');
+    my $bitrate = np('bitrate');
+    my $genre   = np('genre');
+    my $file    = np('file');
+
+    $bitrate = $bitrate / 1000;
+
+    printf("$bold$c[1]%7s$def: $bold$c[0]%.55s$def\n", 'Artist', $artist);
+    printf("$bold$c[2]%7s$def: %.55s$def\n", 'Album', $album);
+    printf("$bold$c[3]%7s$def: %.55s$def\n", 'Title', $title);
+    printf("$bold$c[4]%7s$def: %.55s$def\n", 'Year',  $year);
+    printf("$bold$c[5]%7s$def: %.55s$def\n", 'Comment', $comment);
+    printf("$bold$c[6]%7s$def: %d kbps$def\n", 'Bitrate', $bitrate);
+    printf("$bold$c[7]%7s$def: %.55s$def\n", 'Genre', $genre);
+    printf("$bold$c[8]%7s$def: %.55s$def\n", 'File', $file);
+
+  }
+}
+
