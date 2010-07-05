@@ -1,5 +1,6 @@
 #!/usr/bin/perl
-#!/usr/bin/perl
+our $APP     = 'rmcd';
+our $VERSION = 0.1;
 # rmcd
 # Copyright (C) 2010 Magnus Woldrich <trapd00r@trapd00r.se>
 #
@@ -27,26 +28,31 @@ use Mplayer::NowPlaying qw($np_log np stream_np);
 use RPD::URI qw(geturi listchans);
 
 
-my $log     = "$ENV{HOME}/.mplayer/mplayerd.log";
-my $fifo    = "$ENV{HOME}/.mplayer/mplayerd.fifo";
-my $pidfile = '/tmp/mplayerd.pid';
-my $player  = 'mplayer';
-my @playopt = ('-cache', 200, '-quiet', '-identify',
-                '-idle', '-input', "file=$fifo"
-              );
+my $dir_to_copy_to = "$ENV{HOME}/ToTransfer";
+my $log            = "$ENV{HOME}/.mplayer/mplayerd.log";
+my $fifo           = "$ENV{HOME}/.mplayer/mplayerd.fifo";
+my $pidfile        = '/tmp/mplayerd.pid';
+my $player         = 'mplayer';
+my @playopt        = ('-cache', 200, '-quiet', '-identify',
+                      '-idle', '-input', "file=$fifo"
+                    );
 $np_log = $log;
-
 
 
 # Check if files ^ exist
 fileexist();
 
-our($opt_radio);
+our($opt_radio, $opt_info_style) = (undef);
 GetOptions(
   'kill'      => \&killkid,
   'play:s{,}' => sub {shift; load(@_)},
   'cmd:s{,}'  => \&cmd,
   'radio:s'   => \&radio,
+  'help'      => \&usage,
+  'list'      => \&list_radio,
+  'info'      => \&info,
+  'np'        => sub {$opt_info_style = 1; info()},
+  'cp|copy'   => \&cp,
 );
 
 my @files = @ARGV; # No opts specified, go on...
@@ -54,9 +60,7 @@ my @files = @ARGV; # No opts specified, go on...
 if(-e $pidfile) {
   # started, waiting for commands
   if(!@files) {
-    # lets show some info
-    #print np('file');
-    info();
+    #usage();
   }
   load(@files);
 }
@@ -64,6 +68,9 @@ else {
   play(@files);
 }
 
+if($opt_info_style) {
+  info();
+}
 
 my %allowed_cmds = (
   next    => 'pt_step 1',
@@ -75,7 +82,7 @@ my %allowed_cmds = (
 );
 
 
-
+sub list_radio { print for(listchans()); exit(0); }
 
 sub fileexist {
   if(!-p $fifo) {
@@ -86,10 +93,44 @@ sub fileexist {
 
 sub load {
   my @toload = @_;
+  if(!-e $pidfile) { #not started
+    play(@toload);
+    exit(0);
+  }
   print "$_\n" for @toload;
   open(my $fh, '>', $fifo) or croak("Cant open $fifo: $!");
   print $fh "loadfile @toload\n";
   exit(0);
+}
+
+sub cp {
+  my $file = np('file');
+  if(!$file) {
+    print "There's no file to copy!\n";
+    exit(1);
+  }
+  if($file =~ m;(?:http|mms)://;) {
+    print "You can not copy a stream\n";
+    exit(1);
+  }
+  if(!-e $dir_to_copy_to) {
+    if(mkdir($dir_to_copy_to)) {
+      print "Created directory '$dir_to_copy_to'\n";
+    }
+    else {
+      print "Could not create directory $dir_to_copy_to: $!\n";
+      exit(1);
+    }
+  }
+  if(copy($file, "$dir_to_copy_to/")) {
+    print "'$file' -> '$dir_to_copy_to'\n";
+    exit(0);
+  }
+  else {
+    print "Copy failed: $!\n";
+    exit(1);
+  }
+  exit 232;
 }
 
 sub radio {
@@ -165,8 +206,9 @@ sub info {
   if(`tput colors` > 255) {
     my $e = "\033[38;5";
     @c = (
-      "$e;029m", "$e;130m", "$e;136m", "$e;142m", "$e;148m",
-      "$e;154m", "$e;166m", "$e;172m", "$e;178m", "$e;184m",
+      "$e;148m", "$e;250m", "$e;249m", "$e;248m", "$e;247m",
+      "$e;246m", "$e;245m", "$e;244m", "$e;244m", "$e;243m",
+      "$e;172m", "$e;178m",
     );
   }
   else {
@@ -175,18 +217,21 @@ sub info {
     }
   }
 
-  if(np('file') =~ m;(?:http|mms)://;) {
+  if(np('file') =~ m;(?:http|mms)://;) { # stream
     my $np = stream_np();
 
     my($title, $bitrate, $website, $genre) = ($np->{title}, $np->{bitrate},
     $np->{website}, $np->{genre});
     
-    if($bitrate < 192) {
-      $bitrate = "$c[4]$bitrate$def$bold :($def";
+    
+
+    if($opt_info_style) {
+      printf("%s from %s (%s)", $title, $website, $genre);
+      exit(0);
     }
 
     printf("$bold$c[1]%7s$def: $bold$c[0]%.55s$def\n", 'Title', $title);
-    printf("$bold$c[2]%7s$def: %.55s\n", 'Bitrate', $bitrate);
+    printf("$bold$c[2]%7s$def: %.55s\n", 'Bitrate', $bitrate) unless !$bitrate;
     printf("$bold$c[3]%7s$def: %.55s\n", 'Genre', $genre);
     printf("$bold$c[4]%7s$def: %.55s\n", 'Channel', $website);
   }
@@ -202,9 +247,14 @@ sub info {
 
     $bitrate = $bitrate / 1000;
 
+    if($opt_info_style) {
+      printf("%s - %s (%s, %d)", $artist, $title, $genre, $year);
+      exit(0);
+    }
+
     printf("$bold$c[1]%7s$def: $bold$c[0]%.55s$def\n", 'Artist', $artist);
-    printf("$bold$c[2]%7s$def: %.55s$def\n", 'Album', $album);
-    printf("$bold$c[3]%7s$def: %.55s$def\n", 'Title', $title);
+    printf("$bold$c[2]%7s$def: $c[11]%.55s$def\n", 'Album', $album);
+    printf("$bold$c[3]%7s$def: $c[10]%.55s$def\n", 'Title', $title);
     printf("$bold$c[4]%7s$def: %.55s$def\n", 'Year',  $year);
     printf("$bold$c[5]%7s$def: %.55s$def\n", 'Comment', $comment);
     printf("$bold$c[6]%7s$def: %d kbps$def\n", 'Bitrate', $bitrate);
@@ -214,3 +264,22 @@ sub info {
   }
 }
 
+sub usage {
+  print << "EOF";
+  $APP $VERSION
+  Usage: rmcd [OPTIONS] (FILES/URI)
+  
+  OPTIONS
+    -r,   --radio   play radio station KEY
+    -l,   --list    list radio stations
+    -p,   --play    play FILE(s)/URI
+    -c,   --cmd     send COMMAND to a running process
+    -s    --show    show a list of commands that are supported
+    -i    --info    show now playing information
+    -n    --np      show now playing information on single line
+    -k    --kill    kill the running process
+
+EOF
+
+  exit(0);
+}
