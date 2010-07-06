@@ -41,6 +41,7 @@ my @playopt        = ('-cache', 200, '-quiet', '-identify',
                     );
 $np_log = $log;
 
+# fixe FIXME only rel namn shinfo :)
 my $channels = getchans();
 
 # Check if files ^ exist
@@ -79,11 +80,11 @@ GetOptions(
 );
 
 if(@opt_play_songs) {
-  my @fixme = @opt_play_songs;
-  for(@fixme) {
-    s;.+/(.+);$1;;
-    print "Adding \033[1m$1\033[0m\n";
-  }
+#  my @fixme = @opt_play_songs;
+#  for(@fixme) {
+#    s;.+/(.+);$1;;
+#    print "Adding \033[1m$1\033[0m\n";
+#  }
   load(@opt_play_songs);
 }
 
@@ -128,10 +129,22 @@ sub load {
   }
 
   if(!-e $pidfile) { #not started
+    if($toload[0] !~ m;(?:http|mms)://;) {
+      my @fixme = @toload;
+      for(@fixme) {
+        s;.+/(.+);$1;;
+        print "Adding \033[1m$1\033[0m\n";
+      }
+    }
     daemonize(); 
     exec($player, @playopt, @toload);
   }
   exit(0) if(!@toload);
+  my @fixme = @toload;
+  for(@fixme) { # FIXME
+    s;.+/(.+);$1;;
+    print "Adding \033[1m$1\033[0m\n";
+  }
   open(my $fh, '>', $fifo) or croak("Cant open $fifo: $!");
   print $fh "loadfile @toload\n";
   exit(0);
