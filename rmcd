@@ -66,12 +66,14 @@ rmcd home page: <http://github.com/trapd00r/rmcd/>
 =head1 COPYRIGHT
 
 Copyright 2010 Magnus Woldrich. License GPLv2: GNU GPL version 2 or later
+
 This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.
 
 =head1 SEE ALSO
 
 B<Radio Playing Daemon> <http://github.com/trapd00r/RPD/>
+
 B<Mplayer::NowPlaying>  <http://github.com/trapd00r/Mplayer-NowPlaying/>
 
 =cut
