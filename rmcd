@@ -1,23 +1,84 @@
 #!/usr/bin/perl
+=pod
+
+=head1 NAME
+
+  rmcd - Remotely control a daemonized Mplayer process
+
+=head1 SYNOPSIS
+
+  rmcd [OPTION]... [FILE/URI]
+
+=head1 DESCRIPTION
+
+B<rmcd> is a mplayer daemon/client - it daemonizes itself, playing
+music/movies/radio stations and waiting for input through the named pipe.
+
+You can send commands, load and play new content whenever you like.
+
+You can run rmcd on one computer and remotely control it on another, fully
+transparent. It only cares for the presence of the named pipe.
+
+You can also setup mplayer to stream the content to you, creating a solution
+similar to MPD and their builti-in httpd streaming (except MPD does not support
+video streaming).
+
+rmcd features a built-in, user configureable, webradio management system,
+functionality for copying the current track to your portable mp3 player or
+wherever you prefer, favorizing of tracks and loading of the same, now playing
+information for both local files and streams, along other nifty stuff.
+
+=head1 OPTIONS
+
+    -l,   --load       play FILE(s)/URI or radio station (see -list)
+    -ch,  --chanlist   list available radio channels
+    -cm,  --cmd        send COMMAND to a running process (see shortcuts)
+    -cl,  --clist      show a list of commands that are supported
+    -cp,  --copy       copy TRACK to DESTDIR
+    -i,   --info       show now playing information
+    -si   --shinfo     show now playing information on single line
+    -k,   --kill       kill the running process
+    -h,   --help       show the help
+    -m,   --man        show the manpage
+
+=head2 Shortcuts for often used commands
+
+    -n    --next       next in playlist
+    -p    --prev       previous in playlist
+    -t,   --toggle     toggle playback
+    -s,   --stop       stop playback
+    -f    --fullscreen toggle fullscreen
+
+=head1 ENVIRONMENT
+
+The configuration file should be placed in $XDG_CONFIG_HOME/rmcd/rmcd.conf
+
+=head1 AUTHOR
+
+Written by Magnus Woldrich.
+
+=head1 REPORTING BUGS
+
+Report bugs to trapd00r@trapd00r.se
+
+rmcd home page: <http://github.com/trapd00r/rmcd/>
+
+=head1 COPYRIGHT
+
+Copyright 2010 Magnus Woldrich. License GPLv2: GNU GPL version 2 or later
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+=head1 SEE ALSO
+
+B<Radio Playing Daemon> <http://github.com/trapd00r/RPD/>
+B<Mplayer::NowPlaying>  <http://github.com/trapd00r/Mplayer-NowPlaying/>
+
+=cut
+
 our $APP     = 'rmcd';
 our $VERSION = 0.2;
 my  $DEBUG = 0;
-# rmcd
-# Copyright (C) 2010 Magnus Woldrich <trapd00r@trapd00r.se>
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-########################################################################
 
 use strict;
 use Carp;
@@ -27,6 +88,7 @@ use Cwd qw(abs_path getcwd);
 use File::Copy;
 use Mplayer::NowPlaying qw($np_log np stream_np);
 use RMCD::Radio qw(geturi listchans getchans);
+use Pod::Usage;
 
 # imported from config file, if any
 our ($dir_to_copy_to,%personal_stations) = (undef);
@@ -62,6 +124,7 @@ GetOptions(
   'load:s{1,}' => \@opt_play_songs,
   'cmd:s{,}'   => \&cmd,
   'help'       => \&usage,
+  'man'        => sub {pod2usage(-verbose => 3)},
   'chanlist'   => \&list_radio,
   'info'       => \&info,
   'si|shinfo'  => sub {$opt_info_style = 1; info()},
@@ -311,28 +374,6 @@ sub info {
 }
 
 sub usage {
-  print << "EOF";
-  $APP $VERSION
-  Usage: rmcd [OPTIONS] (FILES/URI)
-  
-  OPTIONS
-    -l,   --load       play FILE(s)/URI or radio station (see -list)
-    -ch,  --chanlist   list available radio channels
-    -cm,  --cmd        send COMMAND to a running process (see shortcuts)
-    -cl,  --clist      show a list of commands that are supported
-    -cp,  --copy       copy TRACK to DESTDIR
-    -i,   --info       show now playing information
-    -si   --shinfo     show now playing information on single line
-    -k,   --kill       kill the running process
-
-  SHORTCUTS
-    -n    --next       next in playlist
-    -p    --prev       previous in playlist
-    -t,   --toggle     toggle playback
-    -s,   --stop       stop playback
-    -f    --fullscreen toggle fullscreen
-
-
-EOF
+  pod2usage(-verbose => 1);
   exit(0);
 }
