@@ -1,0 +1,76 @@
+=pod
+
+=head1 NAME
+
+  rmcd - Remotely control a daemonized Mplayer process
+
+=head1 SYNOPSIS
+
+  rmcd [OPTION]... [FILE/URI]
+
+=head1 DESCRIPTION
+
+B<rmcd> is a mplayer daemon/client - it daemonizes itself, playing
+music/movies/radio stations and waiting for input through the named pipe.
+
+You can send commands, load and play new content whenever you like.
+
+You can run rmcd on one computer and remotely control it on another, fully
+transparent. It only cares for the presence of the named pipe.
+
+You can also setup mplayer to stream the content to you, creating a solution
+similar to MPD and their builti-in httpd streaming (except MPD does not support
+video streaming).
+
+rmcd features a built-in, user configureable, webradio management system,
+functionality for copying the current track to your portable mp3 player or
+wherever you prefer, favorizing of tracks and loading of the same, now playing
+information for both local files and streams, along other nifty stuff.
+
+=head1 OPTIONS
+
+    -l,   --load       play FILE(s)/URI or radio station (see -list)
+    -ch,  --chanlist   list available radio channels
+    -cm,  --cmd        send COMMAND to a running process (see shortcuts)
+    -cl,  --clist      show a list of commands that are supported
+    -cp,  --copy       copy TRACK to DESTDIR
+    -i,   --info       show now playing information
+    -si   --shinfo     show now playing information on single line
+    -k,   --kill       kill the running process
+    -h,   --help       show the help
+    -m,   --man        show the manpage
+
+=head2 Shortcuts for often used commands
+
+    -n    --next       next in playlist
+    -p    --prev       previous in playlist
+    -t,   --toggle     toggle playback
+    -s,   --stop       stop playback
+    -f    --fullscreen toggle fullscreen
+
+=head1 ENVIRONMENT
+
+The configuration file should be placed in $XDG_CONFIG_HOME/rmcd/rmcd.conf
+
+=head1 AUTHOR
+
+Written by Magnus Woldrich.
+
+=head1 REPORTING BUGS
+
+Report bugs to trapd00r@trapd00r.se
+
+rmcd home page: <http://github.com/trapd00r/rmcd/>
+
+=head1 COPYRIGHT
+
+Copyright 2010 Magnus Woldrich. License GPLv2: GNU GPL version 2 or later
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+=head1 SEE ALSO
+
+B<Radio Playing Daemon> <http://github.com/trapd00r/RPD/>
+B<Mplayer::NowPlaying>  <http://github.com/trapd00r/Mplayer-NowPlaying/>
+
+=cut
