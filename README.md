@@ -2,6 +2,7 @@ rmcd - Remote, Mplayer, Control, Daemon
 ---------------------------------------
 rmcd is a mplayer daemon/client - it daemonizes itself, playing
 tracks/movies/radio stations, and waiting for input from a named pipe.
+
 You can load and play new content whenever you like.
 
 You can run rmcd on one computer and remotely control it on another - it only
@@ -19,5 +20,14 @@ information for both local music/movies and streams, and other nifty stuff.
 Installation
 ------------
 
-    git clone 
+    git clone git://github.com/trapd00r/Mplayer-NowPlaying.git
+    cd Mplayer-NowPlaying
+    perl Makefile.PL
+    make
+    su -c 'make install'
+
     git clone git://github.com/trapd00r/rmcd.git
+    cd rmcd
+    perl Makefile.PL
+    make
+    su -c 'make install'
