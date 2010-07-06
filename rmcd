@@ -57,16 +57,21 @@ my %allowed_cmds = (
 
 our($opt_info_style,@opt_play_songs) = (undef);
 GetOptions(
-  'kill'      => \&killkid,
-  'play:s{1,}'    => \@opt_play_songs,
-  'cmd:s{,}'  => \&cmd,
-  'help'      => \&usage,
-  'list'      => \&list_radio,
-  'info'      => \&info,
-  'np'        => sub {$opt_info_style = 1; info()},
-  'cp|copy'   => \&cp,
-  'fav'       => \&fav,
-  'clist'     => sub {
+  'kill'       => \&killkid,
+  'load:s{1,}' => \@opt_play_songs,
+  'cmd:s{,}'   => \&cmd,
+  'help'       => \&usage,
+  'chanlist'   => \&list_radio,
+  'info'       => \&info,
+  'si|shinfo'  => sub {$opt_info_style = 1; info()},
+  'cp|copy'    => \&cp,
+  'fav'        => \&fav,
+  'next'       => sub {cmd('FIXME','next')},
+  'prev'       => sub {cmd('FIXME','prev')},
+  'toggle'     => sub {cmd('FIXME','pause')},
+  'fullscreen' => sub {cmd('FIXME','fs')},
+  'stop'       => sub {cmd('FIXME','stop')},
+  'clist'      => sub {
     print "$_\n" for(keys(%allowed_cmds));
     print "\033[1mSee 'mplayer -input cmdlist'\033[0m\n";
     exit(0);
@@ -128,7 +133,6 @@ sub load {
   }
   exit(0) if(!@toload);
   open(my $fh, '>', $fifo) or croak("Cant open $fifo: $!");
-  print "loadfile @toload\n";
   print $fh "loadfile @toload\n";
   exit(0);
 }
@@ -172,7 +176,8 @@ sub cmd {
   # Tripplecheck that no other rmcd process are using the fifo!
   shift; # rid of getopt... 
   my $command = shift;
-  my @args    = @_;
+  my @args = @_;
+  print "Command?\n" and exit(1) if(!$command);
   print Dumper "command: $command", "args: \@args\n" if($DEBUG);
   if(defined($allowed_cmds{$command})) {
     $command = $allowed_cmds{$command};
@@ -182,7 +187,7 @@ sub cmd {
   }
 
   open(my $fh, '>', $fifo) or croak("Cant open $fifo: $!");
-  print $fh "$command","\n"; #@args, "\n";
+  print $fh "$command", @args, "\n";
   close($fh);
 }
 
@@ -298,13 +303,22 @@ sub usage {
   Usage: rmcd [OPTIONS] (FILES/URI)
   
   OPTIONS
-    -p,   --play    play FILE(s)/URI
-    -cm,  --cmd     send COMMAND to a running process
-    -cl,  --clist   show a list of commands that are supported
-    -cp,  --copy    copy TRACK to DESTDIR
-    -i,   --info    show now playing information
-    -n,   --np      show now playing information on single line
-    -k,   --kill    kill the running process
+    -l,   --load       play FILE(s)/URI or radio station (see -list)
+    -ch,  --chanlist   list available radio channels
+    -cm,  --cmd        send COMMAND to a running process (see shortcuts)
+    -cl,  --clist      show a list of commands that are supported
+    -cp,  --copy       copy TRACK to DESTDIR
+    -i,   --info       show now playing information
+    -si   --shinfo     show now playing information on single line
+    -k,   --kill       kill the running process
+
+  SHORTCUTS
+    -n    --next       next in playlist
+    -p    --prev       previous in playlist
+    -t,   --toggle     toggle playback
+    -s,   --stop       stop playback
+    -f    --fullscreen toggle fullscreen
+
 
 EOF
   exit(0);
