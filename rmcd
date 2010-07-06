@@ -55,10 +55,10 @@ my %allowed_cmds = (
   fs      => 'fullscreen',
 );
 
-our($opt_info_style) = (undef);
+our($opt_info_style,@opt_play_songs) = (undef);
 GetOptions(
   'kill'      => \&killkid,
-  'play:s{,}' => sub {shift; load(@_)},
+  'play:s{1,}'    => \@opt_play_songs,
   'cmd:s{,}'  => \&cmd,
   'help'      => \&usage,
   'list'      => \&list_radio,
@@ -73,21 +73,23 @@ GetOptions(
   },
 );
 
-my @files = @ARGV; # No opts specified, go on...
-
-if(-e $pidfile) {
-  # started, waiting for commands
-  if(!@files) {
-    #usage();
+if(@opt_play_songs) {
+  my @fixme = @opt_play_songs;
+  for(@fixme) {
+    s;.+/(.+);$1;;
+    print "Adding \033[1m$1\033[0m\n";
   }
-  load(@files);
+  load(@opt_play_songs);
 }
-else {
-  play_and_start(@files);
-}
+
+#my @files = @ARGV; # No opts specified, go on...
+#print @files;
+
+#load(@files);
 
 if($opt_info_style) {
   info();
+  exit(0);
 }
 
 
@@ -121,11 +123,12 @@ sub load {
   }
 
   if(!-e $pidfile) { #not started
-    play_and_start(@toload);
-    exit(0);
+    daemonize(); 
+    exec($player, @playopt, @toload);
   }
-  print "$_\n" for @toload;
+  exit(0) if(!@toload);
   open(my $fh, '>', $fifo) or croak("Cant open $fifo: $!");
+  print "loadfile @toload\n";
   print $fh "loadfile @toload\n";
   exit(0);
 }
@@ -164,19 +167,22 @@ sub cp {
   exit 232;
 }
 
-sub play_and_start {
-  my @toplay = @_;
-  print "$_\n" for @toplay;
-  daemonize();
-  #exec($player @toplay);
-  exec($player, @playopt, @toplay);
-}
 
 sub cmd {
-  shift; # rid of GetOpt... 
-  print my @cmd = @_;
+  # Tripplecheck that no other rmcd process are using the fifo!
+  shift; # rid of getopt... 
+  my $command = shift;
+  my @args    = @_;
+  print Dumper "command: $command", "args: \@args\n" if($DEBUG);
+  if(defined($allowed_cmds{$command})) {
+    $command = $allowed_cmds{$command};
+  }
+  else {
+    print "Arbitary command. You know what you are doing right?\n";
+  }
+
   open(my $fh, '>', $fifo) or croak("Cant open $fifo: $!");
-  print $fh @cmd, "\n";
+  print $fh "$command","\n"; #@args, "\n";
   close($fh);
 }
 
@@ -301,6 +307,5 @@ sub usage {
     -k,   --kill    kill the running process
 
 EOF
-
   exit(0);
 }
