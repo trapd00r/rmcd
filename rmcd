@@ -1,6 +1,7 @@
 #!/usr/bin/perl
 our $APP     = 'rmcd';
-our $VERSION = 0.1;
+our $VERSION = 0.2;
+my  $DEBUG = 0;
 # rmcd
 # Copyright (C) 2010 Magnus Woldrich <trapd00r@trapd00r.se>
 #
@@ -25,12 +26,14 @@ use Getopt::Long;
 use Cwd qw(abs_path getcwd);
 use File::Copy;
 use Mplayer::NowPlaying qw($np_log np stream_np);
-use RPD::URI qw(geturi listchans);
+use RMCD::Radio qw(geturi listchans getchans);
 
+# imported from config file, if any
+our ($dir_to_copy_to,%personal_stations) = (undef);
 
-my $dir_to_copy_to = "$ENV{HOME}/ToTransfer";
-my $log            = "$ENV{HOME}/.mplayer/mplayerd.log";
-my $fifo           = "$ENV{HOME}/.mplayer/mplayerd.fifo";
+my $config         = "$ENV{XDG_CONFIG_HOME}/rmcd/rmcd.conf";
+my $log            = "$ENV{HOME}/.mplayer/rmcd.log";
+my $fifo           = "$ENV{HOME}/.mplayer/rmcd.fifo";
 my $pidfile        = '/tmp/mplayerd.pid';
 my $player         = 'mplayer';
 my @playopt        = ('-cache', 200, '-quiet', '-identify',
@@ -38,21 +41,36 @@ my @playopt        = ('-cache', 200, '-quiet', '-identify',
                     );
 $np_log = $log;
 
+my $channels = getchans();
 
 # Check if files ^ exist
 fileexist();
 
-our($opt_radio, $opt_info_style) = (undef);
+my %allowed_cmds = (
+  next    => 'pt_step 1',
+  prev    => 'pt_step -1',
+  toggle  => 'pause',
+  pause   => 'pause',
+  stop    => 'stop',
+  fs      => 'fullscreen',
+);
+
+our($opt_info_style) = (undef);
 GetOptions(
   'kill'      => \&killkid,
   'play:s{,}' => sub {shift; load(@_)},
   'cmd:s{,}'  => \&cmd,
-  'radio:s'   => \&radio,
   'help'      => \&usage,
   'list'      => \&list_radio,
   'info'      => \&info,
   'np'        => sub {$opt_info_style = 1; info()},
   'cp|copy'   => \&cp,
+  'fav'       => \&fav,
+  'clist'     => sub {
+    print "$_\n" for(keys(%allowed_cmds));
+    print "\033[1mSee 'mplayer -input cmdlist'\033[0m\n";
+    exit(0);
+  },
 );
 
 my @files = @ARGV; # No opts specified, go on...
@@ -65,36 +83,45 @@ if(-e $pidfile) {
   load(@files);
 }
 else {
-  play(@files);
+  play_and_start(@files);
 }
 
 if($opt_info_style) {
   info();
 }
 
-my %allowed_cmds = (
-  next    => 'pt_step 1',
-  prev    => 'pt_step -1',
-  toggle  => 'pause',
-  pause   => 'pause',
-  stop    => 'stop',
-  fs      => 'fullscreen',
-);
 
-
-sub list_radio { print for(listchans()); exit(0); }
-
+sub list_radio {
+  listchans();
+  if(%personal_stations) {
+    print "\n\033[1mPersonal stations available:\033[0m\n";
+    for my $shname(sort(keys(%personal_stations))) {
+      printf("%-40s %s\n", %{$personal_stations{$shname}}->{name}, $shname);
+    }
+  }
+}
 sub fileexist {
   if(!-p $fifo) {
     require POSIX;
     POSIX::mkfifo($fifo, 0666) or croak("Cant mkfifo $fifo: $!");
   }
+  if(-e $config) {
+    require($config);
+    print Dumper \%personal_stations if($DEBUG);
+  }
 }
 
 sub load {
   my @toload = @_;
+  if(defined(%{$channels->{$toload[0]}})) {
+    $toload[0] = geturi($toload[0]);
+  }
+  if(defined($personal_stations{$toload[0]})) {
+    $toload[0] = $personal_stations{$toload[0]}->{uri};
+  }
+
   if(!-e $pidfile) { #not started
-    play(@toload);
+    play_and_start(@toload);
     exit(0);
   }
   print "$_\n" for @toload;
@@ -104,6 +131,10 @@ sub load {
 }
 
 sub cp {
+  if(!$dir_to_copy_to) {
+    print "Please specify destination dir in $config\n";
+    exit(1);
+  }
   my $file = np('file');
   if(!$file) {
     print "There's no file to copy!\n";
@@ -133,22 +164,11 @@ sub cp {
   exit 232;
 }
 
-sub radio {
-  shift;
-  my $key = shift;
-  my $stream = geturi($key);
-  open(my $fh, '>', $fifo) or croak($!);
-  print $fh "loadfile $stream\n";
-  close($fh);
-  sleep(1);
-  info();
-  exit(0);
-}
-
-sub play {
+sub play_and_start {
   my @toplay = @_;
   print "$_\n" for @toplay;
   daemonize();
+  #exec($player @toplay);
   exec($player, @playopt, @toplay);
 }
 
@@ -186,7 +206,7 @@ sub daemonize {
 }
 
 sub killkid {
-  open(my $fh, '<', $pidfile) or croak("Could not open $pidfile: $!");
+  open(my $fh, '<', $pidfile) or print "rmcd is not running\n" and exit(1);
   my $target = <$fh>;
   close($fh);
 
@@ -236,7 +256,7 @@ sub info {
     printf("$bold$c[4]%7s$def: %.55s\n", 'Channel', $website);
   }
   else {
-    my $artist  = np('artist');
+    my $artist  = np('artist'); # solve this with sprintf() // 'foo'; 
     my $title   = np('title');
     my $album   = np('album');
     my $year    = np('year');
@@ -248,7 +268,9 @@ sub info {
     $bitrate = $bitrate / 1000;
 
     if($opt_info_style) {
-      printf("%s - %s (%s, %d)", $artist, $title, $genre, $year);
+
+      printf("%s (%s) [%dkbps]", $file, $title, $bitrate);
+      #printf("%s - %s (%s, %d)", $artist, $title, $genre, $year);
       exit(0);
     }
 
@@ -270,14 +292,13 @@ sub usage {
   Usage: rmcd [OPTIONS] (FILES/URI)
   
   OPTIONS
-    -r,   --radio   play radio station KEY
-    -l,   --list    list radio stations
     -p,   --play    play FILE(s)/URI
-    -c,   --cmd     send COMMAND to a running process
-    -s    --show    show a list of commands that are supported
-    -i    --info    show now playing information
-    -n    --np      show now playing information on single line
-    -k    --kill    kill the running process
+    -cm,  --cmd     send COMMAND to a running process
+    -cl,  --clist   show a list of commands that are supported
+    -cp,  --copy    copy TRACK to DESTDIR
+    -i,   --info    show now playing information
+    -n,   --np      show now playing information on single line
+    -k,   --kill    kill the running process
 
 EOF
 
