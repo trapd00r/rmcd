@@ -144,19 +144,8 @@ GetOptions(
   },
 );
 
-if(@opt_play_songs) {
-#  my @fixme = @opt_play_songs;
-#  for(@fixme) {
-#    s;.+/(.+);$1;;
-#    print "Adding \033[1m$1\033[0m\n";
-#  }
-  load(@opt_play_songs);
-}
+load(@opt_play_songs) if(@opt_play_songs);
 
-#my @files = @ARGV; # No opts specified, go on...
-#print @files;
-
-#load(@files);
 
 if($opt_info_style) {
   info();
@@ -187,9 +176,11 @@ sub fileexist {
 sub load {
   my @toload = @_;
   if(defined(%{$channels->{$toload[0]}})) {
+    # chan defined in RMCD::URI
     $toload[0] = geturi($toload[0]);
   }
   if(defined($personal_stations{$toload[0]})) {
+    # chan defined in the configuration file
     $toload[0] = $personal_stations{$toload[0]}->{uri};
   }
 
@@ -331,18 +322,25 @@ sub info {
 
     my($title, $bitrate, $website, $genre) = ($np->{title}, $np->{bitrate},
     $np->{website}, $np->{genre});
-    
-    
+
+
+    if($website eq 'Add config information here!') {
+      # mpd httpd stream
+      $website = undef;
+    }
+    if($genre eq 'Add config information here!') {
+      $genre = undef;
+    }
 
     if($opt_info_style) {
       printf("%s from %s (%s)", $title, $website, $genre);
       exit(0);
     }
 
-    printf("$bold$c[1]%7s$def: $bold$c[0]%.55s$def\n", 'Title', $title);
-    printf("$bold$c[2]%7s$def: %.55s\n", 'Bitrate', $bitrate) unless !$bitrate;
-    printf("$bold$c[3]%7s$def: %.55s\n", 'Genre', $genre);
-    printf("$bold$c[4]%7s$def: %.55s\n", 'Channel', $website);
+    printf("%7s: $c[9]$bold%s$def\n", 'Title', $title) unless(!$title);
+    printf("%7s: %s\n", 'Genre', $genre) unless(!$genre);
+    printf("%7s: %s\n", 'Bitrate', $bitrate) unless(!$bitrate);
+    printf("%7s: %s\n", 'Channel', $website) unless(!$website);
   }
   else {
     my $artist  = np('artist'); # solve this with sprintf() // 'foo'; 
@@ -355,6 +353,7 @@ sub info {
     my $file    = np('file');
 
     $bitrate = $bitrate / 1000;
+
 
     if($opt_info_style) {
 
