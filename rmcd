@@ -321,6 +321,10 @@ sub info {
   if(np('file') =~ m;http://192;) {
     # local stream
     if(defined($custom_np)) {
+      if($opt_info_style) {
+        $custom_np->('single');
+        exit(0);
+      }
       $custom_np->();
       exit(0);
     }
@@ -341,7 +345,7 @@ sub info {
       $genre = undef;
     }
 
-    if($opt_info_style) {
+    if($opt_info_style) { # oneliner info
       printf("%s from %s (%s)", $title, $website, $genre);
       exit(0);
     }
