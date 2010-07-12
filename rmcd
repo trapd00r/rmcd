@@ -80,7 +80,7 @@ B<Mplayer::NowPlaying>  <http://github.com/trapd00r/Mplayer-NowPlaying/>
 
 our $APP     = 'rmcd';
 our $VERSION = 0.2;
-my  $DEBUG = 0;
+my  $DEBUG = undef;
 
 use strict;
 use Carp;
@@ -93,9 +93,10 @@ use RMCD::Radio qw(geturi listchans getchans);
 use Pod::Usage;
 
 # imported from config file, if any
-our ($dir_to_copy_to,%personal_stations) = (undef);
+our ($dir_to_copy_to,%personal_stations, $custom_np);
 
 my $config         = "$ENV{XDG_CONFIG_HOME}/rmcd/rmcd.conf";
+$config            = './rmcd.conf' if($DEBUG);
 my $log            = "$ENV{HOME}/.mplayer/rmcd.log";
 my $fifo           = "$ENV{HOME}/.mplayer/rmcd.fifo";
 my $pidfile        = '/tmp/mplayerd.pid';
@@ -314,6 +315,14 @@ sub info {
   else {
     for(my $i=0;$i<9;$i++) {
       push(@c, "\033[3$i".'m');
+    }
+  }
+
+  if(np('file') =~ m;http://192;) {
+    # local stream
+    if(defined($custom_np)) {
+      $custom_np->();
+      exit(0);
     }
   }
 
