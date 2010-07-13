@@ -4,50 +4,6 @@ require Exporter;
 @EXPORT_OK = qw(geturi listchans getchname getchans);
 
 our %channels = (
-  p1        => {
-    name => 'Sveriges Radio P1',
-    uri  => 'http://sverigesradio.se/topsy/direkt/132-hi.mp3',
-  },
-  p2        => {
-    name => 'Sveriges Radio P2',
-    uri  => 'http://sverigesradio.se/topsy/direkt/163-hi.mp3',
-  },
-  p3        => {
-    name => 'Sveriges Radio P3',
-    uri  => 'http://sverigesradio.se/topsy/direkt/164-hi.mp3',
-  },
-  p4        => {
-    name => 'Sveriges Radio P4',
-    uri  => 'http://sverigesradio.se/topsy/direkt/179-hi.mp3',
-  },
-  p2musik   => {
-    name => 'Sveriges Radio P2 Musik',
-    uri  => 'http://sverigesradio.se/topsy/direkt/2562-hi.mp3',
-  },
-  dingata   => {
-    name => 'Din Gata 100.6',
-    uri  => 'http://sverigesradio.se/topsy/direkt/2576-hi.mp3',
-  },
-  star      => { 
-    name => 'Sveriges Radio P3 Star',
-    uri  => 'http://sverigesradio.se/topsy/direkt/1607-hi.mp3',
-  },
-  street    => {
-    name => 'Sveriges Radio P3 Street',
-    uri  => 'http://sverigesradio.se/topsy/direkt/1606-hi.mp3',
-  },
-  svea      => {
-    name => 'Sveriges Radio P3 Svea',
-    uri  => 'http://sverigesradio.se/topsy/direkt/1605-hi.mp3',
-  },
-  metropol  => {
-    name => 'Sveriges Radio Metropol',
-    uri  => 'http://sverigesradio.se/topsy/direkt/1605-hi.mp3',
-  },
-  rockster  => {
-    name => 'Sveriges Radio Rockster',
-    uri  => 'http://sverigesradio.se/topsy/direkt/1604-hi.mp3',
-  },
   psy       => {
     name => 'Digitally Imported - Psychedelic',
     uri  => 'http://listen.di.fm/public3/goapsy.pls',
