@@ -80,7 +80,7 @@ B<Mplayer::NowPlaying>  <http://github.com/trapd00r/Mplayer-NowPlaying/>
 
 our $APP     = 'rmcd';
 our $VERSION = 0.2;
-my  $DEBUG = 0;
+my  $DEBUG   = 0;
 
 use strict;
 use Carp;
@@ -94,28 +94,28 @@ use Pod::Usage;
 
 usage() if(!@ARGV);
 
-# imported from config file, if any
-#print $dir_to_copy_to, "\n\n";
-#print "$custom_np\n\n";
-
 my $config         = "$ENV{XDG_CONFIG_HOME}/rmcd/rmcd.conf";
-my $fifo           = "$ENV{HOME}/.mplayer/rmcd.fifo";
+$config            = '/etc/rmcd.conf' unless(-e $config);
 $config            = './rmcd.conf' if($DEBUG);
+my $fifo           = "$ENV{HOME}/.mplayer/rmcd.fifo";
 my $log            = "$ENV{HOME}/.mplayer/rmcd.log";
 my $pidfile        = '/tmp/rmcd.pid';
 
 my $player         = 'mplayer';
-my @playopt        = ('-cache', 1400, '-cache-min', 10, '-identify',
-                      '-idle','-input', "file=$fifo"
+my @playopt        = ('-cache', 1400,
+                      '-cache-min', 10,
+                      '-identify',
+                      '-idle',
+                      '-input',
+                      "file=$fifo"
                     );
-#print "$player @playopt\n\n";
 $np_log = $log;
 
-# fixe FIXME only rel namn shinfo :)
 my $channels = getchans();
 
-# Check if files ^ exist
 fileexist();
+
+# imported from the config
 our($dir_to_copy_to, %personal_stations, $custom_np);
 
 my %allowed_cmds = (
@@ -251,7 +251,7 @@ sub cp {
 
 sub cmd {
   # Tripplecheck that no other rmcd process are using the fifo!
-  shift; # rid of getopt... 
+  shift; # rid of getopt...
   my $command = shift;
   my @args = @_;
   print "Command?\n" and exit(1) if(!$command);
@@ -260,7 +260,7 @@ sub cmd {
     $command = $allowed_cmds{$command};
   }
   else {
-    print "Arbitary command. You know what you are doing right?\n";
+    print "Arbitary command, trying anyway\n";
   }
 
   open(my $fh, '>', $fifo) or croak("Cant open $fifo: $!");
@@ -328,12 +328,17 @@ sub info {
   if(np('file') =~ m;http://192;) {
     # local stream
     if(defined($custom_np)) {
-      if($opt_info_style) {
-        $custom_np->('single');
-        exit(0);
+      if(ref($custom_np)) { #coderef
+
+        if($opt_info_style) { # short info
+          $custom_np->('sometimes you gotta say shut up');
+          exit(0);
+        }
+        $custom_np->() or return(1);
       }
-      $custom_np->();
-      exit(0);
+      else {
+        print $custom_np;
+      }
     }
   }
 
