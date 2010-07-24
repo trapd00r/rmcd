@@ -299,7 +299,7 @@ sub killkid {
   close($fh);
 
   if(kill(9, $target)) {
-    print "Mplayerd with PID $target terminated\n";
+    print "rmcd with PID $target terminated\n";
   }
   else {
     print "Could not kill $target: $!";
@@ -342,7 +342,7 @@ sub info {
     }
   }
 
-  if(np('file') =~ m;(?:http|mms)://;) { # stream
+  if(np('file') =~ m;(?:http|mms)://;) { # remote stream
     my $np = stream_np();
 
     my($title, $bitrate, $website, $genre) = ($np->{title}, $np->{bitrate},
@@ -387,9 +387,9 @@ sub info {
       exit(0);
     }
 
-    printf("$bold$c[1]%7s$def: $bold$c[0]%.55s$def\n", 'Artist', $artist);
-    printf("$bold$c[2]%7s$def: $c[11]%.55s$def\n", 'Album', $album);
-    printf("$bold$c[3]%7s$def: $c[10]%.55s$def\n", 'Title', $title);
+    printf("$bold$c[1]%7s$def: $bold$c[0]%s$def\n", 'Artist', $artist);
+    printf("$bold$c[2]%7s$def: $c[11]%s$def\n", 'Album', $album);
+    printf("$bold$c[3]%7s$def: $c[10]%s$def\n", 'Title', $title);
     printf("$bold$c[4]%7s$def: %.55s$def\n", 'Year',  $year);
     printf("$bold$c[5]%7s$def: %.55s$def\n", 'Comment', $comment);
     printf("$bold$c[6]%7s$def: %d kbps$def\n", 'Bitrate', $bitrate);
