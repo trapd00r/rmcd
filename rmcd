@@ -165,7 +165,7 @@ sub list_radio {
   if(%personal_stations) {
     print "\n\033[1mPersonal stations available:\033[0m\n";
     for my $shname(sort(keys(%personal_stations))) {
-      printf("%-40s %s\n", %{$personal_stations{$shname}}->{name}, $shname);
+      printf("%-40s %s\n", $personal_stations{$shname}{name}, $shname);
     }
   }
 }
@@ -183,11 +183,11 @@ sub fileexist {
 
 sub load {
   my @toload = @_;
-  if(defined(%{$channels->{$toload[0]}})) {
+  if((%{$channels->{$toload[0]}})) {
     # chan defined in RMCD::URI
     $toload[0] = geturi($toload[0]);
   }
-  if(defined($personal_stations{$toload[0]})) {
+  if(($personal_stations{$toload[0]})) {
     # chan defined in the configuration file
     $toload[0] = $personal_stations{$toload[0]}->{uri};
   }
