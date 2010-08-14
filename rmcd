@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+#FOO
 =pod
 
 =head1 NAME
@@ -183,7 +184,7 @@ sub fileexist {
 
 sub load {
   my @toload = @_;
-  if((%{$channels->{$toload[0]}})) {
+  if($channels->{$toload[0]}) {
     # chan defined in RMCD::URI
     $toload[0] = geturi($toload[0]);
   }
@@ -400,6 +401,7 @@ sub info {
 }
 
 sub usage {
+  print "$APP $VERSION\n";
   pod2usage(-verbose => 1);
   exit(0);
 }
