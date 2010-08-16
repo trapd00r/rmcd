@@ -27,7 +27,7 @@ video streaming).
 rmcd features a built-in, user configureable, webradio management system,
 functionality for copying the current track to your portable mp3 player or
 wherever you prefer, favorizing of tracks and loading of the same, now playing
-information for both local files and streams, along other nifty stuff.
+information for both local files and streams, along with other nifty stuff.
 
 =head1 OPTIONS
 
@@ -80,7 +80,7 @@ B<Mplayer::NowPlaying>  <http://github.com/trapd00r/Mplayer-NowPlaying/>
 =cut
 
 our $APP     = 'rmcd';
-our $VERSION = 0.2;
+our $VERSION = '0.2.1';
 my  $DEBUG   = 0;
 
 use strict;
@@ -90,7 +90,6 @@ use Getopt::Long;
 use Cwd qw(abs_path getcwd);
 use File::Copy;
 use Mplayer::NowPlaying qw($np_log np stream_np);
-use RMCD::Radio qw(geturi listchans getchans);
 use Pod::Usage;
 
 usage() if(!@ARGV);
@@ -112,12 +111,10 @@ my @playopt        = ('-cache', 1400,
                     );
 $np_log = $log;
 
-my $channels = getchans();
-
 fileexist();
 
 # imported from the config
-our($dir_to_copy_to, %personal_stations, $custom_np);
+our($dir_to_copy_to, %channels, $custom_np);
 
 my %allowed_cmds = (
   next    => 'pt_step 1',
@@ -135,16 +132,16 @@ GetOptions(
   'cmd:s{,}'   => \&cmd,
   'help'       => \&usage,
   'man'        => sub {pod2usage(-verbose => 3)},
-  'chanlist'   => \&list_radio,
+  'chanlist'   => \&list_channels,
   'info'       => \&info,
   'si|shinfo'  => sub {$opt_info_style = 1; info()},
   'cp|copy'    => \&cp,
   'fav'        => \&fav,
-  'next'       => sub {cmd('FIXME','next')},
-  'prev'       => sub {cmd('FIXME','prev')},
-  'toggle'     => sub {cmd('FIXME','pause')},
-  'fullscreen' => sub {cmd('FIXME','fs')},
-  'stop'       => sub {cmd('FIXME','stop')},
+  'next'       => sub {cmd(undef,'next')},
+  'prev'       => sub {cmd(undef,'prev')},
+  'toggle'     => sub {cmd(undef,'pause')},
+  'fullscreen' => sub {cmd(undef,'fs')},
+  'stop'       => sub {cmd(undef,'stop')},
   'clist'      => sub {
     print "$_\n" for(keys(%allowed_cmds));
     print "\033[1mSee 'mplayer -input cmdlist'\033[0m\n";
@@ -160,16 +157,23 @@ if($opt_info_style) {
   exit(0);
 }
 
+sub geturi {
+  my $chname = shift;
+  return(undef) unless(exists($channels{$chname}));
+  return $channels{$chname}->{uri};
+}
 
-sub list_radio {
-  listchans();
-  if(%personal_stations) {
-    print "\n\033[1mPersonal stations available:\033[0m\n";
-    for my $shname(sort(keys(%personal_stations))) {
-      printf("%-40s %s\n", $personal_stations{$shname}{name}, $shname);
-    }
+sub list_channels {
+  for my $chname(sort(keys(%channels))) {
+    printf("%40s \033[1m%s\033[0m\n", $channels{$chname}{name}, $chname);
   }
 }
+
+sub getchname {
+  my $chname = shift;
+  return($channels{$chname}{name});
+}
+
 sub fileexist {
   if(!-p $fifo) {
     require POSIX;
@@ -178,19 +182,19 @@ sub fileexist {
   }
   if(-e $config) {
     require($config);
-    print Dumper \%personal_stations if($DEBUG);
+    print Dumper \%channels if($DEBUG);
   }
 }
 
 sub load {
   my @toload = @_;
-  if($channels->{$toload[0]}) {
+  if($channels{$toload[0]}) {
     # chan defined in RMCD::URI
     $toload[0] = geturi($toload[0]);
   }
-  if(($personal_stations{$toload[0]})) {
+  if(($channels{$toload[0]})) {
     # chan defined in the configuration file
-    $toload[0] = $personal_stations{$toload[0]}->{uri};
+    $toload[0] = $channels{$toload[0]}->{uri};
   }
 
   if(!-e $pidfile) { #not started
@@ -246,7 +250,7 @@ sub cp {
     print "Copy failed: $!\n";
     exit(1);
   }
-  exit 232;
+  exit(0);
 }
 
 
