@@ -4,7 +4,7 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
     NAME => 'rmcd',
     DISTNAME => 'rmcd',
-    PMLIBDIRS => ['lib'],
+#    PMLIBDIRS => ['lib'],
     ABSTRACT => 'Remotely Control a Daemonized Mplayer process',
     AUTHOR => 'Magnus Woldrich <trapd00r@trapd00r.se',
     EXE_FILES => ['rmcd'],
