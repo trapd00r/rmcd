@@ -13,6 +13,9 @@ WriteMakefile(
     PREREQ_PM => {
         'Mplayer::NowPlaying' => 0,
     },
+    MAN1PODS => {
+      'rmcd.conf' => 'blib/man1/rmcd.conf.1',
+    },
 );
 
 
