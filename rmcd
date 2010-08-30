@@ -1,5 +1,4 @@
 #!/usr/bin/perl
-#FOO
 =pod
 
 =head1 NAME
@@ -31,11 +30,12 @@ information for both local files and streams, along with other nifty stuff.
 
 =head1 OPTIONS
 
-    -l,   --load       play FILE(s)/URI or radio station (see -list)
+    -l,   --load       play FILE(s)/URI or radio station (see -chanlist)
     -ch,  --chanlist   list available radio channels
     -cm,  --cmd        send COMMAND to a running process (see shortcuts)
     -cl,  --clist      show a list of commands that are supported
     -cp,  --copy       copy TRACK to DESTDIR
+    -ccp, --custom-cp  execute a custom copy function, as specified in rmcd.conf
     -i,   --info       show now playing information
     -si   --shinfo     show now playing information on single line
     -k,   --kill       kill the running process
@@ -72,6 +72,8 @@ This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.
 
 =head1 SEE ALSO
+
+rmcd.conf(1)
 
 B<Radio Playing Daemon> <http://github.com/trapd00r/RPD/>
 
@@ -114,7 +116,7 @@ $np_log = $log;
 fileexist();
 
 # imported from the config
-our($dir_to_copy_to, %channels, $custom_np);
+our($dir_to_copy_to, %channels, $custom_np, $custom_cp);
 
 my %allowed_cmds = (
   next    => 'pt_step 1',
@@ -127,22 +129,23 @@ my %allowed_cmds = (
 
 our($opt_info_style,@opt_play_songs) = (undef);
 GetOptions(
-  'kill'       => \&killkid,
-  'load:s{1,}' => \@opt_play_songs,
-  'cmd:s{,}'   => \&cmd,
-  'help'       => \&usage,
-  'man'        => sub {pod2usage(-verbose => 3)},
-  'chanlist'   => \&list_channels,
-  'info'       => \&info,
-  'si|shinfo'  => sub {$opt_info_style = 1; info()},
-  'cp|copy'    => \&cp,
-  'fav'        => \&fav,
-  'next'       => sub {cmd(undef,'next')},
-  'prev'       => sub {cmd(undef,'prev')},
-  'toggle'     => sub {cmd(undef,'pause')},
-  'fullscreen' => sub {cmd(undef,'fs')},
-  'stop'       => sub {cmd(undef,'stop')},
-  'clist'      => sub {
+  'kill'          => \&killkid,
+  'load:s{1,}'    => \@opt_play_songs,
+  'cmd:s{,}'      => \&cmd,
+  'help'          => \&usage,
+  'man'           => sub {pod2usage(-verbose => 3)},
+  'chanlist'      => \&list_channels,
+  'info'          => \&info,
+  'si|shinfo'     => sub {$opt_info_style = 1; info()},
+  'cp|copy'       => \&cp,
+  'ccp|custom-cp' => sub {$custom_cp->()},
+  'fav'           => \&fav,
+  'next'          => sub {cmd(undef,'next')},
+  'prev'          => sub {cmd(undef,'prev')},
+  'toggle'        => sub {cmd(undef,'pause')},
+  'fullscreen'    => sub {cmd(undef,'fs')},
+  'stop'          => sub {cmd(undef,'stop')},
+  'clist'         => sub {
     print "$_\n" for(keys(%allowed_cmds));
     print "\033[1mSee 'mplayer -input cmdlist'\033[0m\n";
     exit(0);
