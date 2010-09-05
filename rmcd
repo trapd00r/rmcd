@@ -152,8 +152,9 @@ GetOptions(
   },
 );
 
-load(@opt_play_songs) if(@opt_play_songs);
-
+if(@opt_play_songs) {
+  load(@opt_play_songs);
+}
 
 if($opt_info_style) {
   info();
@@ -201,10 +202,6 @@ sub fileexist {
 
 sub load {
   my @toload = @_;
-  if($channels{$toload[0]}) {
-    # chan defined in RMCD::URI
-    $toload[0] = geturi($toload[0]);
-  }
   if(($channels{$toload[0]})) {
     # chan defined in the configuration file
     $toload[0] = $channels{$toload[0]}->{uri};
@@ -229,6 +226,7 @@ sub load {
   }
   open(my $fh, '>', $fifo) or croak("Cant open fifo $fifo: $!");
   print $fh "loadfile @toload\n";
+  close($fh);
   exit(0);
 }
 
