@@ -31,9 +31,10 @@ information for both local files and streams, along with other nifty stuff.
 =head1 OPTIONS
 
     -l,   --load       play FILE(s)/URI or radio station (see -chanlist)
-    -ch,  --chanlist   list available radio channels
-    -cm,  --cmd        send COMMAND to a running process (see shortcuts)
-    -cl,  --clist      show a list of commands that are supported
+    -r,   --shuffle    shuffle the playlist before adding it
+          --chanlist   list available radio channels
+          --cmd        send COMMAND to a running process (see shortcuts)
+          --clist      show a list of commands that are supported
     -cp,  --copy       copy TRACK to DESTDIR
     -ccp, --custom-cp  execute a custom copy function, as specified in rmcd.conf
     -i,   --info       show now playing information
@@ -82,7 +83,7 @@ B<Mplayer::NowPlaying>  <http://github.com/trapd00r/Mplayer-NowPlaying/>
 =cut
 
 our $APP     = 'rmcd';
-our $VERSION = '0.2.1';
+our $VERSION = '0.2.2';
 my  $DEBUG   = 0;
 
 use strict;
@@ -142,7 +143,7 @@ GetOptions(
   'cp|copy'       => \&cp,
   'ccp|custom-cp' => \&custom_cp_legal,
   'fav'           => \&fav,
-  'shuffle'       => \$opt_shuffle,
+  'r|shuffle'     => \$opt_shuffle,
   'next'          => sub {cmd(undef,'next')},
   'prev'          => sub {cmd(undef,'prev')},
   'toggle'        => sub {cmd(undef,'pause')},
@@ -154,6 +155,10 @@ GetOptions(
     exit(0);
   },
 );
+
+if($opt_shuffle and !@opt_play_songs) {
+  print STDERR "You can not shuffle nothingness\n" and exit(-1);
+}
 
 if(@opt_play_songs) {
   if($opt_shuffle) {
