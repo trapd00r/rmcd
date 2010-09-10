@@ -93,6 +93,7 @@ use Cwd qw(abs_path getcwd);
 use File::Copy;
 use Mplayer::NowPlaying qw($np_log np stream_np);
 use Pod::Usage;
+use List::Util 'shuffle';
 
 usage() if(!@ARGV);
 
@@ -128,6 +129,7 @@ my %allowed_cmds = (
 );
 
 our($opt_info_style,@opt_play_songs) = (undef);
+our($opt_shuffle) = 0;
 GetOptions(
   'kill'          => \&killkid,
   'load:s{1,}'    => \@opt_play_songs,
@@ -140,6 +142,7 @@ GetOptions(
   'cp|copy'       => \&cp,
   'ccp|custom-cp' => \&custom_cp_legal,
   'fav'           => \&fav,
+  'shuffle'       => \$opt_shuffle,
   'next'          => sub {cmd(undef,'next')},
   'prev'          => sub {cmd(undef,'prev')},
   'toggle'        => sub {cmd(undef,'pause')},
@@ -153,6 +156,9 @@ GetOptions(
 );
 
 if(@opt_play_songs) {
+  if($opt_shuffle) {
+    @opt_play_songs = shuffle(@opt_play_songs);
+  }
   load(@opt_play_songs);
 }
 
