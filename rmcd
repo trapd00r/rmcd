@@ -114,6 +114,7 @@ my @playopt        = ('-cache', 1400,
                       "file=$fifo"
                     );
 $np_log = $log;
+my $temp_playlist  = '/tmp/rmcd-playlist';
 
 fileexist();
 
@@ -141,6 +142,7 @@ GetOptions(
   'info'          => \&info,
   'si|shinfo'     => sub {$opt_info_style = 1; info()},
   'cp|copy'       => \&cp,
+  'playlist'      => \&show_playlist,
   'ccp|custom-cp' => \&custom_cp_legal,
   'fav'           => \&fav,
   'r|shuffle'     => \$opt_shuffle,
@@ -169,6 +171,35 @@ if(@opt_play_songs) {
 
 if($opt_info_style) {
   info();
+  exit(0);
+}
+
+sub show_playlist {
+  my $current_file = np('file');
+  return(-1) if(!$current_file);
+
+  open(my $fh, '<', $temp_playlist) or die("Can not open $temp_playlist: $!");
+  chomp(my @list = <$fh>);
+  close($fh);
+
+  # stream FIXME arbitary streams
+  if($channels{$list[0]}) {
+    printf("%s (%s)\n", $channels{$list[0]}{name}, $channels{$list[0]}{uri});
+    exit(0);
+  }
+
+
+  for(@list) {
+    if($_ eq $current_file) {
+      $_ =~ m;.+/(.+)$; and printf("\033[1m\33[36m$1\033[0m\n");
+    }
+    else {
+      $_ =~ m;.+/(.+)$; and printf("$1\n");
+    }
+  }
+  printf("\n%s: %s\n", 'Random',
+    ($opt_shuffle) ? 'Off' : 'On'
+  );
   exit(0);
 }
 
@@ -213,6 +244,8 @@ sub fileexist {
 
 sub load {
   my @toload = @_;
+  #FIXME
+  my $listing = join("\n", @toload);
   if(($channels{$toload[0]})) {
     # chan defined in the configuration file
     $toload[0] = $channels{$toload[0]}->{uri};
@@ -226,18 +259,35 @@ sub load {
         print "Adding \033[1m$1\033[0m\n";
       }
     }
+    # regular files
+
+    open(my $plist, '>', $temp_playlist)
+      or die("Can not open $temp_playlist: $!");
+    print $plist $listing;
+    close($plist);
     daemonize();
     exec($player, @playopt, @toload);
   }
+
+  # rmcd was already running
+
   exit(0) if(!@toload);
   my @fixme = @toload;
   for(@fixme) { # FIXME
     s;.+/(.+);$1;;
     print "Adding \033[1m$1\033[0m\n";
   }
-  open(my $fh, '>', $fifo) or croak("Cant open fifo $fifo: $!");
-  print $fh "loadfile @toload\n";
+  open(my $fh, '>', $fifo) or die("Can not open $fifo: $!"); 
+  print $fh "load @toload\n";
   close($fh);
+
+  open(my $plist, '>', $temp_playlist)
+    or die("Can not open $temp_playlist: $!");
+
+  print $plist $listing;
+  close($plist);
+
+
   exit(0);
 }
 
@@ -308,6 +358,8 @@ sub daemonize {
   if($PID) { # parent
     waitpid($PID, 0);
     unlink($pidfile); # remove the lock when child have died
+    #FIXME
+    unlink("/tmp/rmcd-playlist.$$");
     exit(0);
   }
   elsif($PID == 0) { # child
