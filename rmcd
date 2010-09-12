@@ -301,6 +301,9 @@ sub load {
     s;.+/(.+);$1;;
     print "Adding \033[1m$1\033[0m\n";
   }
+
+  @toload = map{"'$_'"} @toload;
+
   open(my $fh, '>', $fifo) or die("Can not open $fifo: $!"); 
   print $fh "load @toload\n";
   print $fh "loop $opt_repeat\n";
@@ -311,6 +314,10 @@ sub load {
 
   print $plist $listing;
   close($plist);
+
+  open(my $state, '>', $rmcd_state) or die("Can not open $rmcd_state: $!");
+  print $state "Random: $opt_shuffle Repeat: $opt_repeat\n";
+  close($state);
 
   exit(0);
 }
