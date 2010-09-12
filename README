@@ -25,23 +25,26 @@ DESCRIPTION
     with other nifty stuff.
 
 OPTIONS
-        -l,   --load       play FILE(s)/URI or radio station (see -list)
+        -l,   --load       play FILE(s)/URI or radio station (see -chanlist)
+        -r,   --shuffle    shuffle the playlist before adding it
+              --repeat     turn repeat ON
+        -pl,  --playlist   show the current playlist
         -ch,  --chanlist   list available radio channels
-        -cm,  --cmd        send COMMAND to a running process (see shortcuts)
+        -c,   --cmd        send COMMAND to a running process (see shortcuts)
         -cl,  --clist      show a list of commands that are supported
         -cp,  --copy       copy TRACK to DESTDIR
+        -ccp, --custom-cp  execute a custom copy function, as specified in rmcd.conf
         -i,   --info       show now playing information
-        -si   --shinfo     show now playing information on single line
+        -si,  --shinfo     show now playing information on single line
         -k,   --kill       kill the running process
         -h,   --help       show the help
         -m,   --man        show the manpage
 
-  Shortcuts for often used commands
-        -n    --next       next in playlist
-        -p    --prev       previous in playlist
+        -n,   --next       next in playlist
+        -p,   --prev       previous in playlist
         -t,   --toggle     toggle playback
         -s,   --stop       stop playback
-        -f    --fullscreen toggle fullscreen
+        -f,   --fullscreen toggle fullscreen
 
 ENVIRONMENT
     The configuration file should be placed in
@@ -63,6 +66,8 @@ COPYRIGHT
     is NO WARRANTY, to the extent permitted by law.
 
 SEE ALSO
+    rmcd.conf(1)
+
     Radio Playing Daemon <http://github.com/trapd00r/RPD/>
 
     Mplayer::NowPlaying <http://github.com/trapd00r/Mplayer-NowPlaying/>
