@@ -32,6 +32,7 @@ information for both local files and streams, along with other nifty stuff.
 
     -l,   --load       play FILE(s)/URI or radio station (see -chanlist)
     -r,   --shuffle    shuffle the playlist before adding it
+          --repeat     turn repeat ON
     -pl,  --playlist   show the current playlist
     -ch,  --chanlist   list available radio channels
     -c,   --cmd        send COMMAND to a running process (see shortcuts)
@@ -82,7 +83,7 @@ B<Mplayer::NowPlaying>  <http://github.com/trapd00r/Mplayer-NowPlaying/>
 =cut
 
 our $APP     = 'rmcd';
-our $VERSION = '0.2.3';
+our $VERSION = '0.2.4';
 my  $DEBUG   = 0;
 
 use strict;
@@ -114,6 +115,7 @@ my @playopt        = ('-cache', 1400,
                     );
 $np_log = $log;
 my $temp_playlist  = '/tmp/rmcd-playlist';
+my $rmcd_state     = '/tmp/rmcd-state';
 
 fileexist();
 
@@ -131,6 +133,7 @@ my %allowed_cmds = (
 
 our($opt_info_style,@opt_play_songs) = (undef);
 our($opt_shuffle) = 0;
+our($opt_repeat)  = 0;
 GetOptions(
   'kill'          => \&killkid,
   'load:s{1,}'    => \@opt_play_songs,
@@ -145,6 +148,7 @@ GetOptions(
   'ccp|custom-cp' => \&custom_cp_legal,
   'fav'           => \&fav,
   'r|shuffle'     => \$opt_shuffle,
+  'repeat'        => sub { $opt_repeat  = 1; },
   'n|next'        => sub {cmd(undef,'next')},
   'p|prev'        => sub {cmd(undef,'prev')},
   't|toggle'      => sub {cmd(undef,'pause')},
@@ -198,8 +202,18 @@ sub show_playlist {
       printf("%s\n", ($1) ? $1 : $_);
     }
   }
-  printf("\n%s: \033[1m%s\033[0m\n", 'Random',
-    ($opt_shuffle) ? 'Off' : 'On'
+
+  open(my $fh, '<', $rmcd_state) or die("Can not open $rmcd_state: $!");
+  chomp(my $state = <$fh>);
+  close($fh);
+
+  ($opt_shuffle) = $state =~ m/Random: (\d+)/;
+  ($opt_repeat)  = $state =~ m/Repeat: (\d+)/;
+
+
+  printf("\n%s: \033[1m%s\033[0m %s: \033[1m%s\033[0m\n",
+    'Random', ($opt_shuffle) ? 'On' : 'Off',
+    'Repeat', ($opt_repeat)  ? 'On' : 'Off',
   );
   exit(0);
 }
@@ -241,6 +255,10 @@ sub fileexist {
     require($config);
     print Dumper \%channels if($DEBUG);
   }
+  if(!-e $rmcd_state) {
+    open(my $fh, '>', $rmcd_state) or die("Can not open $rmcd_state: $!");
+    close($fh);
+  }
 }
 
 sub load {
@@ -266,6 +284,11 @@ sub load {
       or die("Can not open $temp_playlist: $!");
     print $plist $listing;
     close($plist);
+
+    open(my $state, '>', $rmcd_state) or die("Can not open $rmcd_state: $!");
+    print $state "Random: $opt_shuffle Repeat: $opt_repeat\n";
+    close($state);
+
     daemonize();
     exec($player, @playopt, @toload);
   }
@@ -280,6 +303,7 @@ sub load {
   }
   open(my $fh, '>', $fifo) or die("Can not open $fifo: $!"); 
   print $fh "load @toload\n";
+  print $fh "loop $opt_repeat\n";
   close($fh);
 
   open(my $plist, '>', $temp_playlist)
@@ -287,7 +311,6 @@ sub load {
 
   print $plist $listing;
   close($plist);
-
 
   exit(0);
 }
@@ -464,7 +487,7 @@ sub info {
 
     if($opt_info_style) {
 
-      printf("%s (%s) [%dkbps]", $file, $title, $bitrate);
+      printf("%s (%s) [%dkbps]", $file, $comment, $bitrate);
       #printf("%s - %s (%s, %d)", $artist, $title, $genre, $year);
       exit(0);
     }
