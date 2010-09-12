@@ -32,6 +32,7 @@ information for both local files and streams, along with other nifty stuff.
 
     -l,   --load       play FILE(s)/URI or radio station (see -chanlist)
     -r,   --shuffle    shuffle the playlist before adding it
+          --playlist   show the current playlist
           --chanlist   list available radio channels
           --cmd        send COMMAND to a running process (see shortcuts)
           --clist      show a list of commands that are supported
@@ -83,7 +84,7 @@ B<Mplayer::NowPlaying>  <http://github.com/trapd00r/Mplayer-NowPlaying/>
 =cut
 
 our $APP     = 'rmcd';
-our $VERSION = '0.2.2';
+our $VERSION = '0.2.3';
 my  $DEBUG   = 0;
 
 use strict;
