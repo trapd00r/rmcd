@@ -46,11 +46,11 @@ information for both local files and streams, along with other nifty stuff.
 
 =head2 Shortcuts for often used commands
 
-    -n    --next       next in playlist
-    -p    --prev       previous in playlist
+    -n,   --next       next in playlist
+    -p,   --prev       previous in playlist
     -t,   --toggle     toggle playback
     -s,   --stop       stop playback
-    -f    --fullscreen toggle fullscreen
+    -f,   --fullscreen toggle fullscreen
 
 =head1 ENVIRONMENT
 
@@ -148,7 +148,7 @@ GetOptions(
   'fav'           => \&fav,
   'r|shuffle'     => \$opt_shuffle,
   'next'          => sub {cmd(undef,'next')},
-  'prev'          => sub {cmd(undef,'prev')},
+  'p|prev'        => sub {cmd(undef,'prev')},
   'toggle'        => sub {cmd(undef,'pause')},
   'fullscreen'    => sub {cmd(undef,'fs')},
   'stop'          => sub {cmd(undef,'stop')},
