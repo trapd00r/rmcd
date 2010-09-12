@@ -358,7 +358,9 @@ sub daemonize {
   if($PID) { # parent
     waitpid($PID, 0);
     unlink($pidfile); # remove the lock when child have died
-    #FIXME
+
+    #TODO Use this for starting playback where one left off..
+    unlink($temp_playlist);
     unlink("/tmp/rmcd-playlist.$$");
     exit(0);
   }
