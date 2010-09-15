@@ -154,6 +154,8 @@ GetOptions(
   't|toggle'      => sub {cmd(undef,'pause')},
   'f|fullscreen'  => sub {cmd(undef,'fs')},
   's|stop'        => sub {cmd(undef,'stop')},
+
+  'debug'         => \$DEBUG,
   'cl|clist'      => sub {
     print "$_\n" for(keys(%allowed_cmds));
     print "\033[1mSee 'mplayer -input cmdlist'\033[0m\n";
@@ -289,7 +291,7 @@ sub load {
     print $state "Random: $opt_shuffle Repeat: $opt_repeat\n";
     close($state);
 
-    daemonize();
+    daemonize() unless($DEBUG);
     exec($player, @playopt, @toload);
   }
 
@@ -423,12 +425,13 @@ sub info {
   my @c = undef;
   my($def,$bold,$italic) = ("\033[0m", "\033[1m", "\033[3m");
 
-  if(`tput colors` > 255) {
+  chomp(my $color_support = `tput colors`);
+  if($color_support > 255) {
     my $e = "\033[38;5";
     @c = (
-      "$e;148m", "$e;250m", "$e;249m", "$e;248m", "$e;247m",
+      "$e;197m", "$e;250m", "$e;249m", "$e;248m", "$e;247m",
       "$e;246m", "$e;245m", "$e;244m", "$e;244m", "$e;243m",
-      "$e;172m", "$e;178m",
+      "$e;208m", "$e;226m",
     );
   }
   else {
@@ -457,8 +460,8 @@ sub info {
   if(np('file') =~ m;(?:http|mms)://;) { # remote stream
     my $np = stream_np();
 
-    my($title, $bitrate, $website, $genre) = ($np->{title}, $np->{bitrate},
-    $np->{website}, $np->{genre});
+    my($title, $bitrate, $website, $genre)
+      = ($np->{title}, $np->{bitrate}, $np->{website}, $np->{genre});
 
 
     if($website eq 'Add config information here!') {
