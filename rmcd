@@ -44,6 +44,7 @@ information for both local files and streams, along with other nifty stuff.
     -k,   --kill       kill the running process
     -h,   --help       show the help
     -m,   --man        show the manpage
+    -d,   --debug      run in debug mode
 
     -n,   --next       next in playlist
     -p,   --prev       previous in playlist
@@ -148,7 +149,7 @@ GetOptions(
   'ccp|custom-cp' => \&custom_cp_legal,
   'fav'           => \&fav,
   'r|shuffle'     => \$opt_shuffle,
-  'repeat'        => sub { $opt_repeat  = 1; },
+  'repeat'        => sub {$opt_repeat  = 1},
   'n|next'        => sub {cmd(undef,'next')},
   'p|prev'        => sub {cmd(undef,'prev')},
   't|toggle'      => sub {cmd(undef,'pause')},
@@ -181,7 +182,7 @@ if($opt_info_style) {
 
 sub show_playlist {
   my $current_file = np('file');
-  return(-1) if(!$current_file);
+  return(1) if(!$current_file);
 
   open(my $fh, '<', $temp_playlist) or die("Can not open $temp_playlist: $!");
   chomp(my @list = <$fh>);
