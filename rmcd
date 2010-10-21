@@ -38,7 +38,7 @@ my $rmcd_state     = '/tmp/rmcd-state';
 fileexist();
 
 # imported from the config
-our($dir_to_copy_to, %channels, $custom_np, $custom_cp);
+our($dir_to_copy_to, %channels, $custom_np, $custom_cp, $local_station);
 
 my %allowed_cmds = (
   next    => 'pt_step 1',
@@ -358,7 +358,7 @@ sub info {
     }
   }
 
-  if(np('file') =~ m;http://192;) {
+  if(np('file') eq $channels{$local_station}->{uri}) { # m;http://192;) {
     # local stream
     if(defined($custom_np)) {
       if(ref($custom_np)) { #coderef
