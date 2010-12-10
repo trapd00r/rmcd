@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 our $APP     = 'rmcd';
-our $VERSION = '0.2.4';
+our $VERSION = '0.2.5';
 my  $DEBUG   = 0;
 
 use strict;
@@ -46,7 +46,7 @@ my %allowed_cmds = (
   toggle  => 'pause',
   pause   => 'pause',
   stop    => 'stop',
-  fs      => 'fullscreen',
+  fs      => 'vo_fullscreen',
 );
 
 our($opt_info_style,@opt_play_songs) = (undef);
