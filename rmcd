@@ -1,18 +1,27 @@
 #!/usr/bin/perl
-our $APP     = 'rmcd';
-our $VERSION = '0.2.5';
-my  $DEBUG   = 0;
+use strict;
+my  $APP     = 'rmcd';
+our $VERSION = '0.275';
 
 use strict;
-use Carp;
-use Getopt::Long;
-use Cwd qw(abs_path getcwd);
-use File::Copy;
-use Mplayer::NowPlaying qw($np_log np stream_np);
-use Pod::Usage;
-use List::Util 'shuffle';
+use Cwd                 qw(abs_path getcwd);
+use Carp                qw(croak);
+use Pod::Usage          qw(pod2usage);
+use List::Util          qw(shuffle);
+use File::Copy          qw(copy);
+use Getopt::Long        qw(GetOptions);
+use Daemon::Mplayer     qw(mplayer_play mplayer_stop);
+use Mplayer::NowPlaying qw(now_playing);
+use Term::ExtendedColor qw(:attributes);
+#use Data::Dumper        qw(Dumper);
+#$Data::Dumper::Terse     = 1;
+#$Data::Dumper::Indent    = 1;
+#$Data::Dumper::Useqq     = 1;
+#$Data::Dumper::Deparse   = 1;
+#$Data::Dumper::Quotekeys = 0;
+#$Data::Dumper::Sortkeys  = 1;
 
-if($DEBUG) { use Data::Dumper; }
+my $DEBUG = $ENV{DEBUG};
 
 usage() if(!@ARGV);
 
@@ -31,14 +40,13 @@ my @playopt        = ('-cache', 1400,
                       '-input',
                       "file=$fifo"
                     );
-$np_log = $log;
 my $temp_playlist  = '/tmp/rmcd-playlist';
 my $rmcd_state     = '/tmp/rmcd-state';
 
 fileexist();
 
 # imported from the config
-our($dir_to_copy_to, %channels, $custom_np, $custom_cp, $local_station);
+our($dir_to_copy_to, %channels, $custom_now_playing, $custom_cp, $local_station);
 
 my %allowed_cmds = (
   next    => 'pt_step 1',
@@ -49,36 +57,34 @@ my %allowed_cmds = (
   fs      => 'vo_fullscreen',
 );
 
-our($opt_info_style,@opt_play_songs) = (undef);
-our($opt_shuffle) = 0;
-our($opt_repeat)  = 0;
+my @opt_play_songs;
+my($opt_shuffle, $opt_repeat) = (0, 1);
 GetOptions(
-  'kill'          => \&killkid,
+  #'ch|chanlist'   => \&list_channels,
+  # 'cp|copy'       => \&cp,
+  #'fav'           => \&fav,
+  'kill'          => sub { mplayer_stop( { pidfile => $pidfile } ); },
   'load:s{1,}'    => \@opt_play_songs,
   'c|cmd:s{,}'    => \&cmd,
-  'help'          => \&usage,
-  'man'           => sub {pod2usage(-verbose => 3)},
-  'ch|chanlist'   => \&list_channels,
   'info'          => \&info,
-  'si|shinfo'     => sub {$opt_info_style = 1; info()},
-  'cp|copy'       => \&cp,
   'pl|playlist'   => \&show_playlist,
-  'ccp|custom-cp' => \&custom_cp_legal,
-  'fav'           => \&fav,
   'r|shuffle'     => \$opt_shuffle,
-  'repeat'        => sub {$opt_repeat  = 1},
-  'n|next'        => sub {cmd(undef,'next')},
-  'p|prev'        => sub {cmd(undef,'prev')},
-  't|toggle'      => sub {cmd(undef,'pause')},
-  'f|fullscreen'  => sub {cmd(undef,'fs')},
-  's|stop'        => sub {cmd(undef,'stop')},
+  'repeat'        => sub { $opt_repeat = 1;    },
+  'n|next'        => sub { cmd(undef, 'next')  },
+  'p|prev'        => sub { cmd(undef, 'prev')  },
+  't|toggle'      => sub { cmd(undef, 'pause') },
+  'f|fullscreen'  => sub { cmd(undef, 'fs')    },
+  's|stop'        => sub { cmd(undef, 'stop'); },
+  'cl|clist'      => sub {
+    print "$_\n" for(sort(keys(%allowed_cmds)));
+    print "\nSee 'mplayer -input cmdlist'\n";
+    exit;
+  },
 
   'debug'         => \$DEBUG,
-  'cl|clist'      => sub {
-    print "$_\n" for(keys(%allowed_cmds));
-    print "\033[1mSee 'mplayer -input cmdlist'\033[0m\n";
-    exit(0);
-  },
+  'h|help'        => sub { pod2usage(verbose => 1);  exit },
+  'm|man'         => sub { pod2usage(verbose => 3);  exit },
+  'v|version'     => sub { print "$APP v$VERSION\n"; exit },
 );
 
 if($opt_shuffle and !@opt_play_songs) {
@@ -92,33 +98,21 @@ if(@opt_play_songs) {
   load(@opt_play_songs);
 }
 
-if($opt_info_style) {
-  info();
-  exit(0);
-}
 
 sub show_playlist {
-  my $current_file = np('file');
-  return(1) if(!$current_file);
+  my $current_file = (map { $_->{file} } now_playing($log, 'identify'))[0];
 
   open(my $fh, '<', $temp_playlist) or die("Can not open $temp_playlist: $!");
   chomp(my @list = <$fh>);
   close($fh);
 
-  # stream FIXME arbitary streams
-  if($channels{$list[0]}) {
-    printf("%s (%s)\n", $channels{$list[0]}{name}, $channels{$list[0]}{uri});
-    exit(0);
-  }
-
-
   for(@list) {
     if($_ eq $current_file) {
-      $_ =~ m;.+/(.+)$;;
-      printf("\033[1m\033[34m%s\033[0m\n", ($1) ? $1 : $_);
+      $_ =~ m{.+/(.+)$};
+      printf("%s\n", $1 ? bold($1) : bold($_));
     }
     else {
-      $_ =~ m;.+/(.+)$;;
+      $_ =~ m{.+/(.+)$};
       printf("%s\n", ($1) ? $1 : $_);
     }
   }
@@ -130,39 +124,12 @@ sub show_playlist {
   ($opt_shuffle) = $state =~ m/Random: (\d+)/;
   ($opt_repeat)  = $state =~ m/Repeat: (\d+)/;
 
-
-  printf("\n%s: \033[1m%s\033[0m %s: \033[1m%s\033[0m\n",
-    'Random', ($opt_shuffle) ? 'On' : 'Off',
-    'Repeat', ($opt_repeat)  ? 'On' : 'Off',
+  printf("\nRandom: %s Repeat: %s\n",
+    $opt_shuffle ? bold(fg('blue4', 'On')) : 'Off',
+    $opt_repeat  ? bold(fg('blue4', 'On')) : 'Off',
   );
-  exit(0);
-}
 
-sub custom_cp_legal {
-  if(ref($custom_cp) eq 'CODE') {
-    $custom_cp->(); # bye. everything from now on is the users fault :)
-  }
-  else {
-    print "\033[1m$custom_cp\e[0m is not a code reference\n";
-    exit(-1);
-  }
-}
-
-sub geturi {
-  my $chname = shift;
-  return(undef) unless(exists($channels{$chname}));
-  return $channels{$chname}->{uri};
-}
-
-sub list_channels {
-  for my $chname(sort(keys(%channels))) {
-    printf("%40s \033[1m%s\033[0m\n", $channels{$chname}{name}, $chname);
-  }
-}
-
-sub getchname {
-  my $chname = shift;
-  return($channels{$chname}{name});
+  return;
 }
 
 sub fileexist {
@@ -183,12 +150,8 @@ sub fileexist {
 
 sub load {
   my @toload = @_;
-  #FIXME
+
   my $listing = join("\n", @toload);
-  if(($channels{$toload[0]})) {
-    # chan defined in the configuration file
-    $toload[0] = $channels{$toload[0]}->{uri};
-  }
 
   if(!-e $pidfile) { #not started
     if($toload[0] !~ m;(?:http|mms)://;) {
@@ -200,6 +163,7 @@ sub load {
     }
     # regular files
 
+
     open(my $plist, '>', $temp_playlist)
       or die("Can not open $temp_playlist: $!");
     print $plist $listing;
@@ -209,8 +173,15 @@ sub load {
     print $state "Random: $opt_shuffle Repeat: $opt_repeat\n";
     close($state);
 
-    daemonize() unless($DEBUG);
-    exec($player, @playopt, @toload);
+    mplayer_play(
+      {
+        pidfile => $pidfile,
+        logfile => $log,
+        path    => $player,
+        args    => [ @playopt, @toload ],
+      }
+    );
+    #exec($player, @playopt, @toload);
   }
 
   # rmcd was already running
@@ -224,7 +195,7 @@ sub load {
 
   @toload = map{"'$_'"} @toload;
 
-  open(my $fh, '>', $fifo) or die("Can not open $fifo: $!"); 
+  open(my $fh, '>', $fifo) or die("Can not open $fifo: $!");
   print $fh "load @toload\n";
   print $fh "loop $opt_repeat\n";
   close($fh);
@@ -247,7 +218,7 @@ sub cp {
     print "Please specify destination dir in $config\n";
     exit(1);
   }
-  my $file = np('file');
+  my $file = now_playing('file');
   if(!$file) {
     print "There's no file to copy!\n";
     exit(1);
@@ -296,163 +267,39 @@ sub cmd {
   close($fh);
 }
 
-sub daemonize {
-  use POSIX 'setsid';
-  my $PID = fork();
-  exit(0) if($PID); #parent
-  exit(1) if(!defined($PID)); # out of resources
-
-  setsid();
-  $PID = fork();
-  exit(1) if(!defined($PID));
-
-  if($PID) { # parent
-    waitpid($PID, 0);
-    unlink($pidfile); # remove the lock when child have died
-
-    #TODO Use this for starting playback where one left off..
-    unlink($temp_playlist);
-    unlink("/tmp/rmcd-playlist.$$");
-    exit(0);
-  }
-  elsif($PID == 0) { # child
-    open(my $fh, '>', $pidfile) or die("Cant open $pidfile: $!");
-    print $fh $$;
-    close($fh);
-    open(STDOUT, '>', $log);
-    open(STDERR, '>', '/dev/null');
-    open(STDIN,  '<', '/dev/null');
-  }
-}
-
-sub killkid {
-  open(my $fh, '<', $pidfile) or print "rmcd is not running\n" and exit(1);
-  my $target = <$fh>;
-  close($fh);
-
-  if(kill(9, $target)) {
-    print "rmcd with PID $target terminated\n";
-  }
-  else {
-    print "Could not kill $target: $!";
-  }
-  exit(0);
-}
-
 sub info {
-  my @c = undef;
-  my($def,$bold,$italic) = ("\033[0m", "\033[1m", "\033[3m");
+  my $np = now_playing($log, 'identify');
 
-  chomp(my $color_support = `tput colors`);
-  if($color_support > 255) {
-    my $e = "\033[38;5";
-    @c = (
-      "$e;197m", "$e;250m", "$e;249m", "$e;248m", "$e;247m",
-      "$e;246m", "$e;245m", "$e;244m", "$e;244m", "$e;243m",
-      "$e;208m", "$e;226m",
-    );
-  }
-  else {
-    for(my $i=0;$i<9;$i++) {
-      push(@c, "\033[3$i".'m');
-    }
+  if(! -t STDOUT) {
+    printf("mplayer: %s (%s)\n", $np->{file}, $np->{bitrate} / 1000);
+    return;
   }
 
-  if(np('file') eq $channels{$local_station}->{uri}) { # m;http://192;) {
-    # local stream
-    if(defined($custom_np)) {
-      if(ref($custom_np)) { #coderef
+  for my $wanted(qw(
+    artist album title
+    genre year bitrate
+    channels chapters
+    format
+    file
 
-        if($opt_info_style) { # short info
-          $custom_np->('sometimes you gotta say shut up');
-          exit(0);
-        }
-        $custom_np->() or return(1);
-      }
-      else {
-        print $custom_np;
-      }
-    }
+  )) {
+    printf("%8s: %s\n", ucfirst($wanted), $np->{$wanted})
+      if exists($np->{$wanted});
   }
-
-  if(np('file') =~ m;(?:http|mms)://;) { # remote stream
-    my $np = stream_np();
-
-    my($title, $bitrate, $website, $genre)
-      = ($np->{title}, $np->{bitrate}, $np->{website}, $np->{genre});
-
-
-    if($website eq 'Add config information here!') {
-      # mpd httpd stream
-      $website = undef;
-    }
-    if($genre eq 'Add config information here!') {
-      $genre = undef;
-    }
-
-    if($opt_info_style) { # oneliner info
-      printf("%s from %s (%s)", $title, $website, $genre);
-      exit(0);
-    }
-
-    printf("%7s: $c[9]$bold%s$def\n", 'Title', $title) unless(!$title);
-    printf("%7s: %s\n", 'Genre', $genre) unless(!$genre);
-    printf("%7s: %s\n", 'Bitrate', $bitrate) unless(!$bitrate);
-    printf("%7s: %s\n", 'Channel', $website) unless(!$website);
-  }
-  else {
-    my $artist  = np('artist');
-    my $title   = np('title');
-    my $album   = np('album');
-    my $year    = np('year');
-    my $comment = np('comment');
-    my $bitrate = np('bitrate');
-    my $genre   = np('genre');
-    my $file    = np('file');
-
-    $bitrate = $bitrate / 1000;
-
-
-    if($opt_info_style) {
-
-      printf("%s (%s) %s",
-        ($artist) ? $artist : $file,
-        ($album)  ? $album  : $year,
-        ($title)  ? $title  : "$bitrate kbps"
-      );
-      exit(0);
-    }
-
-    printf("$bold$c[1]%7s$def: $bold$c[0]%s$def\n", 'Artist', $artist)
-      unless(!$artist);
-    printf("$bold$c[2]%7s$def: $c[11]%s$def\n", 'Album', $album)
-      unless(!$album);
-    printf("$bold$c[3]%7s$def: $c[10]%s$def\n", 'Title', $title)
-      unless(!$title);
-    printf("$bold$c[4]%7s$def: %.55s$def\n", 'Year',  $year)
-      unless(!$year);
-    printf("$bold$c[5]%7s$def: %.55s$def\n", 'Comment', $comment)
-      unless(!$comment);
-    printf("$bold$c[6]%7s$def: %d kbps$def\n", 'Bitrate', $bitrate)
-      unless(!$bitrate);
-    printf("$bold$c[7]%7s$def: %.55s$def\n", 'Genre', $genre)
-      unless(!$genre);
-    printf("$bold$c[8]%7s$def: %.55s$def\n", 'File', $file);
-
-  }
+  return;
 }
 
 sub usage {
-  print "$APP $VERSION\n";
-  pod2usage(-verbose => 1);
-  exit(0);
+  pod2usage(verbose => 1) and exit;
 }
+
+__END__
 
 =pod
 
 =head1 NAME
 
-  rmcd - Remotely control a daemonized Mplayer process
+rmcd - Remotely control a daemonized Mplayer process
 
 =head1 SYNOPSIS
 
@@ -472,7 +319,7 @@ You can also setup mplayer to stream the content to you, creating a solution
 similar to MPD and their builti-in httpd streaming (except MPD does not support
 video streaming).
 
-rmcd features a built-in, user configureable, webradio management system,
+rmcd features a built-in, user configurable, web radio management system,
 functionality for copying the current track to your portable mp3 player or
 wherever you prefer, favorizing of tracks and loading of the same, now playing
 information for both local files and streams, along with other nifty stuff.
@@ -483,17 +330,9 @@ information for both local files and streams, along with other nifty stuff.
     -r,   --shuffle    shuffle the playlist before adding it
           --repeat     turn repeat ON
     -pl,  --playlist   show the current playlist
-    -ch,  --chanlist   list available radio channels
     -c,   --cmd        send COMMAND to a running process (see shortcuts)
     -cl,  --clist      show a list of commands that are supported
-    -cp,  --copy       copy TRACK to DESTDIR
-    -ccp, --custom-cp  execute a custom copy function, as specified in rmcd.conf
     -i,   --info       show now playing information
-    -si,  --shinfo     show now playing information on single line
-    -k,   --kill       kill the running process
-    -h,   --help       show the help
-    -m,   --man        show the manpage
-    -d,   --debug      run in debug mode
 
     -n,   --next       next in playlist
     -p,   --prev       previous in playlist
@@ -501,33 +340,43 @@ information for both local files and streams, along with other nifty stuff.
     -s,   --stop       stop playback
     -f,   --fullscreen toggle fullscreen
 
+    -k,   --kill       kill the running process
+
+    -h,   --help       show the help and exit
+    -m,   --man        show the documentation and exit
+    -v,   --version    show version info and exit
+
 =head1 ENVIRONMENT
 
 The configuration file should be placed in $XDG_CONFIG_HOME/rmcd/rmcd.conf
 
 =head1 AUTHOR
 
-Written by Magnus Woldrich.
+  Magnus Woldrich
+  CPAN ID: WOLDRICH
+  magnus@trapd00r.se
+  http://japh.se
 
-=head1 REPORTING BUGS
+=head1 CONTRIBUTORS
 
-Report bugs to trapd00r@trapd00r.se
-
-rmcd home page: <http://github.com/trapd00r/rmcd/>
+None required yet.
 
 =head1 COPYRIGHT
 
-Copyright 2010 Magnus Woldrich. License GPLv2: GNU GPL version 2 or later
+Copyright 2010, 2011 the B<rmcd> L</AUTHOR> and L</CONTRIBUTORS> as listed
+above.
 
-This is free software: you are free to change and redistribute it.
-There is NO WARRANTY, to the extent permitted by law.
+=head1 LICENSE
+
+This application is free software; you may redistribute it and/or modify it
+under the same terms as Perl itself.
 
 =head1 SEE ALSO
 
-rmcd.conf(1)
+L<rmcd.conf(1)>
 
-B<Radio Playing Daemon> <http://github.com/trapd00r/RPD/>
+B<Radio Playing Daemon> L<http://github.com/trapd00r/RPD/>
 
-B<Mplayer::NowPlaying>  <http://github.com/trapd00r/Mplayer-NowPlaying/>
+L<Mplayer::NowPlaying>  L<http://github.com/trapd00r/Mplayer-NowPlaying/>
 
 =cut

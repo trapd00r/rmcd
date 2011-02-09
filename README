@@ -1,5 +1,5 @@
 NAME
-      rmcd - Remotely control a daemonized Mplayer process
+    rmcd - Remotely control a daemonized Mplayer process
 
 SYNOPSIS
       rmcd [OPTION]... [FILE/URI]
@@ -18,7 +18,7 @@ DESCRIPTION
     solution similar to MPD and their builti-in httpd streaming (except MPD
     does not support video streaming).
 
-    rmcd features a built-in, user configureable, webradio management
+    rmcd features a built-in, user configurable, web radio management
     system, functionality for copying the current track to your portable mp3
     player or wherever you prefer, favorizing of tracks and loading of the
     same, now playing information for both local files and streams, along
@@ -38,7 +38,8 @@ OPTIONS
         -si,  --shinfo     show now playing information on single line
         -k,   --kill       kill the running process
         -h,   --help       show the help
-        -m,   --man        show the manpage
+        -m,   --man        show the manow_playingage
+        -d,   --debug      run in debug mode
 
         -n,   --next       next in playlist
         -p,   --prev       previous in playlist
@@ -51,19 +52,21 @@ ENVIRONMENT
     $XDG_CONFIG_HOME/rmcd/rmcd.conf
 
 AUTHOR
-    Written by Magnus Woldrich.
+      Magnus Woldrich
+      CPAN ID: WOLDRICH
+      magnus@trapd00r.se
+      http://japh.se
 
-REPORTING BUGS
-    Report bugs to trapd00r@trapd00r.se
-
-    rmcd home page: <http://github.com/trapd00r/rmcd/>
+CONTRIBUTORS
+    None required yet.
 
 COPYRIGHT
-    Copyright 2010 Magnus Woldrich. License GPLv2: GNU GPL version 2 or
-    later
+    Copyright 2010, 2011 the rmcd "AUTHOR" and "CONTRIBUTORS" as listed
+    above.
 
-    This is free software: you are free to change and redistribute it. There
-    is NO WARRANTY, to the extent permitted by law.
+LICENSE
+    This application is free software; you may redistribute it and/or modify
+    it under the same terms as Perl itself.
 
 SEE ALSO
     rmcd.conf(1)
