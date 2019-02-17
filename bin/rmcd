@@ -1,7 +1,9 @@
 #!/usr/bin/perl
+package App::rmcd;
+
 use strict;
 my  $APP     = 'rmcd';
-our $VERSION = '0.275';
+our $VERSION = '0.278';
 
 use strict;
 use Cwd                 qw(abs_path getcwd);
@@ -57,12 +59,14 @@ my %allowed_cmds = (
   fs      => 'vo_fullscreen',
 );
 
+#list_channels();
+
 my @opt_play_songs;
 my($opt_shuffle, $opt_repeat) = (0, 1);
 GetOptions(
-  #'ch|chanlist'   => \&list_channels,
-  # 'cp|copy'       => \&cp,
-  #'fav'           => \&fav,
+  'ch|chanlist'   => \&list_channels,
+  'cp|copy'       => \&cp,
+  'fav'           => \&fav,
   'kill'          => sub { mplayer_stop( { pidfile => $pidfile } ); },
   'load:s{1,}'    => \@opt_play_songs,
   'c|cmd:s{,}'    => \&cmd,
@@ -289,6 +293,12 @@ sub info {
   return;
 }
 
+sub list_channels {
+  for my $id(sort(keys(%channels))) {
+    printf "%s: %s\n", $id, $channels{$id};
+  }
+}
+
 sub usage {
   pod2usage(verbose => 1) and exit;
 }
@@ -354,7 +364,7 @@ The configuration file should be placed in $XDG_CONFIG_HOME/rmcd/rmcd.conf
 
   Magnus Woldrich
   CPAN ID: WOLDRICH
-  magnus@trapd00r.se
+  m@japh.se
   http://japh.se
 
 =head1 CONTRIBUTORS
