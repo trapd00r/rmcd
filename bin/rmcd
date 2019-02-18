@@ -3,7 +3,7 @@ package App::rmcd;
 
 use strict;
 my  $APP     = 'rmcd';
-our $VERSION = '0.278';
+our $VERSION = '0.280';
 
 use strict;
 use Cwd                 qw(abs_path getcwd);
